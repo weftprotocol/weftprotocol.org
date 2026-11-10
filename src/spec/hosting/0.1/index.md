@@ -88,7 +88,7 @@ Until the handle is active the person stays at the default handle and nothing re
 
 The token prevents takeover. If Alice leaves a host but forgets to update her CNAME, nobody else on that host can claim `weft.alice.com`, because they can't produce her token. Several people may claim the same handle; the first to show the token keeps it.
 
-Hosts SHOULD re-check handles periodically, and decide what a failure means. A single failed lookup is a poor reason to drop anyone. The reference server checks once a day the accounts that exist only because of their domain (an account made through the weftseed.com sign-up): after three failed days in a row the owner is warned, and after a further 90 days without a pass the account is removed to the trash (§6). Accounts that are not tied to their domain keep their default handle, and the owner can fall back to it at any time.
+Hosts SHOULD re-check handles periodically, and decide what a failure means. A single failed lookup is a poor reason to drop anyone. The reference server checks once a day the accounts that exist only because of their domain (an account made through the weftseed.com sign-up): after three failed days in a row the owner is warned, and after a further 90 days without a pass the account is removed to the trash (§6). Accounts that are not tied to their domain keep their default handle, and the owner can fall back to it at any time. The reference server also checks, once a day, that an active custom handle of such an account still reaches the host. After three failed days in a row the handle stops being the person's address and the account is served at its default handle again; nothing is removed, the handle stays verified, and the owner can make it the address again from the profile page.
 
 ### 3.3 TLS
 
@@ -140,7 +140,7 @@ Every permalink, feed URL and Webmention endpoint keeps its address, so every re
 
 Leaving `alice.weftseed.com` changes every URL. HTTP carries the move, as \[NS\] Moving a feed describes: for at least 90 days, and SHOULD for 12 months, the old host MUST answer every old address, the feed and every permalink included, with a permanent redirect to the same path on the new handle. Use `301` for GET and HEAD and `308` for other methods, so Webmentions still arrive. The old name stays reserved. The reference server never ends the redirect.
 
-The new host SHOULD then re-send Webmentions for every reply and like the person published, so receivers update their links. Hosts SHOULD encourage people to set up a custom handle before they need to move.
+The new host SHOULD then re-send Webmentions for every reply and like the person published, so receivers update their links. The reference server does this when the account arrives, from the new addresses. Hosts SHOULD encourage people to set up a custom handle before they need to move.
 
 ### 5.4 When the old host disappears
 
@@ -160,7 +160,7 @@ Between two reference servers the export and import happen by themselves. This i
 - **Open source.** The reference implementation is a Go server with SQLite, serving HTML pages and a REST API for client apps. The REST API is implementation-specific and not part of this spec; hosts interoperate only through feeds, permalinks and Webmention.
 - **Storage.** A host MAY use one database per person or one per instance. Per-person databases make export and deletion simple.
 - **Pings.** Hosts SHOULD publish rssCloud or WebSub for every feed they serve, per \[NS\].
-- **Deleting an account.** Every permalink returns `410 Gone`, and the host re-sends Webmentions so receivers remove replies and likes. A custom handle stops being served once the person removes the CNAME. The reference server keeps a deleted account's file in a trash for 30 days, so it can be brought back or downloaded, and the name stays reserved. A host MAY also switch an account off, which answers `410` on every address until it is switched on again.
+- **Deleting an account.** Every permalink returns `410 Gone`, and the host re-sends Webmentions so receivers remove replies and likes. The reference server queues them when the account is removed, does not move the file to the trash until they have been sent (or have failed repeatedly), and a receiver that fetches a source gets the `410`. A custom handle stops being served once the person removes the CNAME. The reference server keeps a deleted account's file in a trash for 30 days, so it can be brought back or downloaded, and the name stays reserved. A host MAY also switch an account off, which answers `410` on every address until it is switched on again.
 - **Limits and policy.** Quotas, who may join, a cap on accounts, a waiting list and an administrator's pages are the host's own business. Only the feeds, the permalinks and the redirects are protocol.
 
 ## Open questions
