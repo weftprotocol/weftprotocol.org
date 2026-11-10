@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weft Namespace 0.1 · Weft Protocol</title>
+<meta name="description" content="Web-External Federated Threads. Markdown conversations on any URL, published as RSS 2.0 and connected with Webmention.">
+<link rel="icon" href="../../../assets/favicon.ico" sizes="any">
+<link rel="icon" href="../../../assets/weft-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="../../../index.html"><img src="../../../assets/weft-icon.svg" alt="" width="32" height="32"><span>Weft Protocol</span></a>
+  <nav aria-label="Main">
+    <a href="../../../spec/index.html">Specs</a>
+    <a href="../../../implementations/index.html">Implementations</a>
+    <a href="../../../trademark/index.html">Trademark</a>
+    <a href="https://github.com/weftprotocol/weftprotocol.org">GitHub</a>
+  </nav>
+</header>
+<main>
+<h1 id="weft-namespace-01-draft">Weft Namespace 0.1 (Draft)</h1>
+<p>Weft (Web-External Federated Threads) builds on Dave Winer's textcasting.</p>
+<p>Oct 12, 2026 · @Henry · revised Nov 9, 2026</p>
+<h2 id="status-and-purpose">Status and purpose</h2>
+<p>This is a first working draft of an RSS 2.0 namespace for Weft, which builds on Dave Winer's textcasting: two-way, Markdown-based publishing where every post lives in its author's own feed. It defines how a post marks itself as a reply, how threads are reassembled, how likes are counted, and how feeds move or get edited.</p>
+<p>The spec only adds what RSS 2.0 lacks. Anything RSS 2.0, Winer's Source namespace or Webmention already covers is reused, not redefined. Elements are marked <strong>required</strong>, <strong>recommended</strong> or <strong>optional</strong>.</p>
+<h2 id="design-principles">Design principles</h2>
+<ol type="1">
+<li><strong>Titles are optional but allowed.</strong> A post may be a one-line note with no <code>&lt;title&gt;</code>, or a long titled essay. Apps must handle both equally well. RSS 2.0 already permits this: an item needs at least one of <code>&lt;title&gt;</code> or <code>&lt;description&gt;</code>. In textcasting, <code>&lt;description&gt;</code> is always present, so <code>&lt;title&gt;</code> is truly optional.</li>
+<li><strong>Markdown is the source of truth.</strong> Authors write Markdown. The feed carries both rendered HTML (for any reader) and the original Markdown (for Weft apps).</li>
+<li><strong>No length limit.</strong> There are no threads of numbered posts; a long thought is one post.</li>
+<li><strong>Posts are editable.</strong> Edits update the item in place and notify anyone the post replied to.</li>
+<li><strong>You own your words.</strong> Every post, reply and like lives in its author's own feed at its author's own URL.</li>
+<li><strong>Public by design.</strong> Everything in a Weft feed is public. Private posts and messages are out of scope.</li>
+<li><strong>Degrade gracefully.</strong> A plain RSS reader that ignores this namespace still shows every post correctly.</li>
+</ol>
+<h2 id="namespace-declaration">Namespace declaration</h2>
+<p>The namespace prefix is <code>weft</code>. Parsers match on the URI, not the prefix.</p>
+<pre class="xml"><code>&lt;rss version=&quot;2.0&quot;
+  xmlns:weft=&quot;https://weftprotocol.org/ns/weft/0.1&quot;
+  xmlns:source=&quot;http://source.scripting.com/&quot;
+  xmlns:atom=&quot;http://www.w3.org/2005/Atom&quot;&gt;</code></pre>
+<p>Reused namespaces:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Prefix</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>source:</code></td>
+<td><code>source:markdown</code>, the post's original Markdown; <code>source:inReplyTo</code> and <code>source:comments</code>, written next to <code>weft:inReplyTo</code> and <code>weft:replies</code> (Dave Winer's Source namespace)</td>
+</tr>
+<tr class="even">
+<td><code>atom:</code></td>
+<td><code>atom:link rel="self"</code> and <code>rel="hub"</code> for WebSub pings</td>
+</tr>
+<tr class="odd">
+<td>RSS 2.0 core</td>
+<td><code>&lt;cloud&gt;</code> for rssCloud pings, <code>&lt;category&gt;</code> for keywords, <code>&lt;enclosure&gt;</code> for media, and the channel <code>&lt;image&gt;</code> (its <code>&lt;url&gt;</code>) as the author's avatar</td>
+</tr>
+</tbody>
+</table>
+<h2 id="channel-elements">Channel elements</h2>
+<p>The author's profile uses standard RSS 2.0: <code>&lt;title&gt;</code> is the author or publication name, <code>&lt;description&gt;</code> the bio, <code>&lt;image&gt;</code> the avatar, <code>&lt;link&gt;</code> the homepage. The namespace adds:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Element</th>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;weft:webmention&gt;</code></td>
+<td>Required</td>
+<td>URL of the author's Webmention endpoint, where replies and likes are sent</td>
+</tr>
+<tr class="even">
+<td><code>&lt;weft:following&gt;</code></td>
+<td>Recommended</td>
+<td>URL of an OPML file listing the feeds this author follows; the public follow graph used for trust weighting</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;weft:likesFeed&gt;</code></td>
+<td>Recommended</td>
+<td>URL of the author's separate likes feed</td>
+</tr>
+</tbody>
+</table>
+<p>For update pings, publish either an RSS 2.0 <code>&lt;cloud&gt;</code> element (rssCloud) or <code>&lt;atom:link rel="hub"&gt;</code> (WebSub). At least one is recommended.</p>
+<h2 id="item-elements">Item elements</h2>
+<p>Every post, reply and like is an RSS 2.0 <code>&lt;item&gt;</code>.</p>
+<h3 id="core-elements">Core elements</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Element</th>
+<th>Status</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;guid isPermaLink="false"&gt;</code></td>
+<td>Required</td>
+<td>The post's identity: <code>urn:uuid:</code> plus a UUID (version 7 recommended) made once when the post is created. It is not a URL and never changes, so the post stays the same post if its author moves to another host.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;link&gt;</code></td>
+<td>Required</td>
+<td>The post's HTML permalink: the author's host plus a slug, such as <code>https://alice.example/posts/the-reader-half.k3x9</code>. This URL is the post's address in replies (<code>weft:inReplyTo</code>, <code>weft:root</code>), likes and Webmentions. It is the only URL that serves the post. The slug is built from the title or the first sentence of a note plus a short random suffix (the words may be ones the author chose when making the post: lowercase letters, digits and hyphens; the suffix is always added), is unique in the author's namespace, and never changes after publishing, even if the post is edited. A deleted post keeps its slug reserved.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;description&gt;</code></td>
+<td>Required</td>
+<td>Rendered HTML of the post. Pictures and links in it are full addresses (<code>https://alice.example/media/&lt;hash&gt;.jpg</code>), not paths, since a feed is read away from the site. The same holds for <code>&lt;source:markdown&gt;</code>. An author's own pictures may be stored on the author's server and referred to there; a reader may show them from that address.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;title&gt;</code></td>
+<td>Optional</td>
+<td>Include only if the author gave one. Apps must not invent titles from the first line.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;source:markdown&gt;</code></td>
+<td>Recommended</td>
+<td>The original Markdown, unaltered.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;source:inReplyTo&gt;</code></td>
+<td>Optional</td>
+<td>The address of the post this one answers, as text, with <code>feedUrl</code> when the parent's feed is known. Weft writes it with every <code>weft:inReplyTo</code>, for readers that know only the source namespace. A reader that finds no <code>weft:inReplyTo</code> uses it; an identifier that is not an address (<code>isPermaLink="false"</code>) cannot be followed and is ignored.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;source:comments&gt;</code></td>
+<td>Optional</td>
+<td><code>count</code> and <code>feedUrl</code> of the item's replies feed. Written with every <code>weft:replies</code>. Weft does not read it.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;pubDate&gt;</code></td>
+<td>Required</td>
+<td>First publication time.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;weft:canonical href="…"/&gt;</code></td>
+<td>Optional</td>
+<td>Present on a repost: the address where the content first appeared. An original has none. A reader shows "Originally published at …" and may prefer the original when it shows the same text twice. <code>href</code> must be an <code>http</code> or <code>https</code> address. Atom readers can use <code>&lt;link rel="canonical"&gt;</code> for the same thing.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;weft:updated&gt;</code></td>
+<td>Optional</td>
+<td>Time of the latest edit, RFC 822 format like <code>pubDate</code>. Present only on edited items.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;category&gt;</code></td>
+<td>Optional</td>
+<td>Keywords: one element per keyword or phrase, as typed by the author (not Markdown, not hashtags). Writers should publish at most 10 of up to 50 characters, with no commas, and readers should apply the same limits to what other hosts publish. A reader decides how to show them; Weft shows them as chips under the post, and serves a topic feed at <code>feed.xml?category=&lt;keyword&gt;</code> (the posts with that keyword, matched ignoring case, paged like the main feed). The query is a convenience, not part of the format: a reader follows the feed address it is given.</td>
+</tr>
+<tr class="even">
+<td><code>&lt;enclosure&gt;</code></td>
+<td>Optional</td>
+<td>Attached media, as in podcasting.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="reply-elements">Reply elements</h3>
+<p><code>&lt;weft:inReplyTo&gt;</code> marks the item as a reply. It is the child's upward link, and it survives even if the parent rejects or deletes the reply.</p>
+<pre class="xml"><code>&lt;weft:inReplyTo href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+              feed=&quot;https://alice.example/feed.xml&quot;/&gt;</code></pre>
+<ul>
+<li><code>href</code> (required): the parent's permalink, equal to the parent's <code>&lt;link&gt;</code>.</li>
+<li><code>feed</code> (optional): the parent's feed URL. A Weft reader does not need it: it reads the parent from its permalink (see <em>Post representations</em>). It matters when the parent is not a textcast post, since a plain RSS item can only be found through its feed. Required in that case (see <em>Replying to any RSS 2.0 item</em>).</li>
+</ul>
+<p><code>&lt;weft:root&gt;</code> names the post that started the thread, like email's <code>References</code> header. Any reply can be placed in its conversation even if middle posts disappear.</p>
+<pre class="xml"><code>&lt;weft:root href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+         feed=&quot;https://alice.example/feed.xml&quot;/&gt;</code></pre>
+<ul>
+<li>Required on every reply. Omitted on the root post itself.</li>
+<li>When replying directly to the root, <code>weft:root</code> and <code>weft:inReplyTo</code> point to the same URL.</li>
+</ul>
+<p><code>&lt;weft:context&gt;</code> carries a short snippet of the parent, so the reply still makes sense if the parent goes offline.</p>
+<pre class="xml"><code>&lt;weft:context href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+            retrieved=&quot;Mon, 12 Oct 2026 22:30:00 -0400&quot;&gt;
+  RSS plus links already gives you a social web.
+&lt;/weft:context&gt;</code></pre>
+<ul>
+<li>Recommended. In its minimal form it is an empty element carrying only <code>href</code> (and <code>retrieved</code>): the URL of the parent. A text snippet is optional: plain text, kept brief, no more than about 300 characters.</li>
+<li>Optional attributes <code>title</code> (up to 200 characters), <code>description</code> (up to 300, the same as the text snippet) and <code>image</code> (an absolute http or https address) say what the parent page looked like when it was <code>retrieved</code>: single-line plain text, so a reader can show a link card for a page that publishes no feed and cannot be looked up. Readers apply the same limits and ignore an <code>image</code> that is not an http(s) address. Weft writes these when a reply is started from the bookmarklet and shows them as a card. Readers that do not know them still have the <code>href</code>.</li>
+</ul>
+<pre class="xml"><code>&lt;weft:context href=&quot;https://blog.example/posts/web-of-links&quot; retrieved=&quot;Mon, 12 Oct 2026 22:30:00 -0400&quot;
+              title=&quot;The web of links&quot; description=&quot;Why links still beat feeds.&quot; image=&quot;https://blog.example/cover.jpg&quot;/&gt;</code></pre>
+<ul>
+<li>It is a quote for context, not a copy. Apps must not display it as the parent post when the parent is reachable.</li>
+<li>A reply to a plain RSS 2.0 item or any other page treats the parent as if it were already deleted: the link (and the snippet, when present) are all a reader can rely on. The parent may be any URL, textcast or not.</li>
+<li>Optional <code>origin</code> attribute: <code>author</code> (written by the replier, the default) or <code>generated</code> (summarized by an app, for example with AI). Readers may label generated context, and authors should review it before publishing.</li>
+</ul>
+<h3 id="like-elements">Like elements</h3>
+<p><code>&lt;weft:likeOf href="…"/&gt;</code> marks the item as a like of the post at <code>href</code>.</p>
+<ul>
+<li><code>href</code> (required): the permalink of the post liked. It may be any page, Weft or not.</li>
+<li><code>title</code>, <code>description</code>, <code>image</code> (optional): what the liked page looked like, with the same limits and cleaning as on <code>weft:context</code>. They let a reader name a page that publishes no feed ("Bob liked “The web of links”") instead of showing a bare address.</li>
+</ul>
+<p>A like is a single positive signal, with no emoji. It names who liked with <code>&lt;weft:feed href="…"&gt;Display name&lt;/weft:feed&gt;</code>, the same element a replies feed uses, because the likes feed's own title is something like "Bob likes". There are no dislikes. Anything a person wants to say beyond approval is a reply, and a reply may be nothing but an emoji; readers may show such replies compactly. A like item has no <code>&lt;title&gt;</code> and an empty <code>&lt;description&gt;</code>. A user has at most one active like per post. Withdrawing it deletes the item (the permalink then returns 410). Likes are published in the likes feed, not the main feed.</p>
+<h3 id="reply-and-like-count-elements">Reply and like count elements</h3>
+<ul>
+<li><code>&lt;weft:replies href="…" count="7"/&gt;</code> (recommended): the URL of this post's replies feed and the number of approved replies.</li>
+<li><code>&lt;weft:likes count="12" href="…"/&gt;</code> (optional): the number of verified likes received. <code>href</code> (optional) is the post's liked-by feed, <code>&lt;permalink&gt;/likes.xml</code>: an RSS 2.0 feed with one item per like received, each with <code>&lt;weft:likeOf href="…"/&gt;</code> the permalink and <code>&lt;weft:feed href="…"&gt;Name&lt;/weft:feed&gt;</code> the liker. A reader that follows only some of the likers uses it to show who the others are and offer to follow them. The likers already publish these likes in their own likes feeds. It is a cache; the likes themselves live in the likers' feeds and can be recounted.</li>
+</ul>
+<h2 id="replies-feed">Replies feed</h2>
+<p>Each post may publish a replies feed: an RSS 2.0 feed of the replies its author has approved. It is the parent's downward link to its children, and it lets readers rebuild a thread one level at a time.</p>
+<p>Channel elements of a replies feed:</p>
+<ul>
+<li><code>&lt;weft:repliesTo href="…"/&gt;</code> (required): the permalink of the post these replies belong to.</li>
+<li><code>&lt;weft:depth&gt;</code> (optional, default 1): how many levels of descendants this feed caches.</li>
+<li><code>&lt;lastBuildDate&gt;</code> (required): when the cache was last refreshed.</li>
+</ul>
+<p>Each <code>&lt;item&gt;</code> is a reference to a reply, not a full copy:</p>
+<ul>
+<li><code>&lt;guid&gt;</code> and <code>&lt;link&gt;</code>: the reply's permalink. The <code>guid</code> may be that permalink with <code>isPermaLink="true"</code>; the <code>urn:uuid:</code> identity stays in the author's own feed.</li>
+<li><code>&lt;description&gt;</code>: a short excerpt for display.</li>
+<li><code>&lt;author&gt;</code> or <code>&lt;weft:feed href="…"&gt;Display name&lt;/weft:feed&gt;</code>: who wrote it, by feed URL. The element text is an optional display name.</li>
+<li><code>&lt;weft:inReplyTo&gt;</code>: the reply's parent. Required when <code>weft:depth</code> is greater than 1, so deeper items can be placed in the tree.</li>
+<li><code>&lt;weft:replies href="…" count="…"/&gt;</code> (optional): where the reply's own replies are published and how many the feed's host has cached, so a reader can show a closed branch's size without opening it. Items one level down need not carry it.</li>
+<li><code>&lt;weft:likes count="…"/&gt;</code>: the reply's like count, if known.</li>
+</ul>
+<h3 id="cached-subtrees">Cached subtrees</h3>
+<p>A replies feed fills its second level from the replies feeds of its own replies. Reference implementation: it caches one level below each approved reply (<code>weft:depth</code> of 2) and keeps it fresh with the bubble-up rule below, so the cache only changes when a real change was reported. Deeper levels are found by reading the replies feed of a reply, one level at a time.</p>
+<p>With <code>weft:depth</code> of 2 or 3, one fetch returns most of a conversation. Readers rebuild the tree from each item's <code>weft:inReplyTo</code>. A post's cache goes stale when a deeper reply arrives; the update rule under Processing rules keeps it fresh.</p>
+<p><code>weft:depth</code> is a statement by the server that publishes the feed about what its feed holds: how many levels it chose to cache. It is a setting of that server, not something the protocol fixes; the reference implementation uses 2. A reader takes the feed as it is and finds anything deeper by reading the replies feed of a reply (<code>weft:replies</code>). A reader also keeps its own limit on how many levels and items it will accept from one feed, so that a feed cannot make it do unbounded work; that limit is a setting of the reader and is not published.</p>
+<h3 id="curated-and-raw-views">Curated and raw views</h3>
+<p>The replies feed is the curated view: only approved replies. The raw view is every item anywhere whose <code>weft:inReplyTo</code> or <code>weft:root</code> points into the thread, as an index sees it. Apps should let readers switch between them.</p>
+<h2 id="likes-feed">Likes feed</h2>
+<p>Likes go in a separate feed, linked from the main feed's <code>weft:likesFeed</code>, so they don't bury posts for subscribers. Each like is an item with a <code>guid</code> permalink of its own (an HTML page) and a <code>weft:likeOf</code>. Each like is also sent to the liked post's Webmention endpoint.</p>
+<p>A person's feeds share one identity: the channel <code>&lt;link&gt;</code> (homepage) of the main feed and the likes feed are the same. Receivers use it to recognise that a like comes from someone they follow, even though they follow the main feed.</p>
+<p>Likes are public. There is no dislike, and nothing private is sent to a post owner; a reader may let its user hide a post locally, which is not published.</p>
+<h2 id="post-representations">Post representations</h2>
+<p>A thread is built from posts, not from feeds. A feed lists an author's newest posts for subscribers, and an old post may no longer be in it. Every post therefore stands on its own at its permalink, which serves these representations by content negotiation (the URL is the same; <code>Vary: Accept</code>):</p>
+<ul>
+<li><strong>HTML</strong> (the default, and for any <code>Accept</code> that includes <code>text/html</code> or <code>*/*</code>): the page described below.</li>
+<li><strong><code>Accept: application/rss+xml</code></strong>: the post as a one-item RSS 2.0 feed, with every <code>weft:</code> element a feed item has: <code>weft:inReplyTo</code>, <code>weft:root</code>, <code>weft:replies</code> (where its approved replies are published), <code>weft:likes</code>. This gives a reader the post, its parent and the way to its replies in one request, whatever the age of the post.</li>
+<li><strong><code>Accept: text/markdown</code></strong>: the post's markdown source.</li>
+</ul>
+<p>A deleted post answers 410 Gone in every representation.</p>
+<p>A reader that has a reply and wants its context needs only the permalinks: the reply's <code>weft:inReplyTo</code> for the parent, and <code>weft:replies</code> for the approved replies below it.</p>
+<h2 id="paged-feeds">Paged feeds</h2>
+<p>A feed shows its newest posts (100 in this implementation) and links to older ones as in RFC 5005: <code>&lt;atom:link rel="next"&gt;</code> to the next page of older items, with <code>rel="previous"</code> and <code>rel="first"</code> on later pages. Readers that follow a feed for the first time should read the <code>next</code> links (on the same host) to get the history, and afterwards poll only the first page. A cached item newer than the oldest item on the first page that has disappeared from it was deleted; older cached items are kept.</p>
+<h2 id="permalink-page-requirements">Permalink page requirements</h2>
+<p>Every item's <code>&lt;link&gt;</code> must resolve to an HTML page. Webmention verification, search engines and people without feed readers all depend on it. The page must include:</p>
+<ul>
+<li><code>&lt;link rel="alternate" type="application/rss+xml" href="…"&gt;</code> pointing to the author's feed.</li>
+<li><code>&lt;link rel="webmention" href="…"&gt;</code> pointing to the author's endpoint.</li>
+<li>For a reply or like, a visible <code>&lt;a href&gt;</code> to the parent or liked post. Webmention receivers check for this link.</li>
+<li><code>&lt;link rel="alternate" type="application/rss+xml" href="…"&gt;</code> to the post's own URL (the one-item representation), <code>&lt;link rel="in-reply-to" href="…"&gt;</code> to the parent for a reply, and <code>&lt;link rel="replies" type="application/rss+xml" href="…"&gt;</code> to the post's replies feed, so a reader that starts from the page can find the thread. The author's feed link comes first.</li>
+</ul>
+<p>Recommended for IndieWeb compatibility: microformats2 markup (<code>h-entry</code>, with <code>u-in-reply-to</code> on replies and <code>u-like-of</code> on likes).</p>
+<h2 id="processing-rules">Processing rules</h2>
+<h3 id="publishing-a-post">Publishing a post</h3>
+<ol type="1">
+<li>Render the Markdown to HTML and write the permalink page.</li>
+<li>Add the item to the feed, with <code>source:markdown</code>, and <code>weft:inReplyTo</code>, <code>weft:root</code> and <code>weft:context</code> if it is a reply.</li>
+<li>If it is a reply, send a Webmention to the parent. Sending one to the root as well is optional.</li>
+<li>Ping subscribers and indexes through rssCloud or WebSub.</li>
+</ol>
+<h3 id="receiving-a-webmention">Receiving a Webmention</h3>
+<ol type="1">
+<li>Fetch the source URL and confirm it links to the target post. If not, reject it.</li>
+<li>Read the source's feed item. If it has <code>weft:inReplyTo</code> matching the target, treat it as a reply; if it has <code>weft:likeOf</code> matching the target, treat it as a like; otherwise it is a plain mention and is ignored.</li>
+<li>Apply moderation: auto-approve senders the author follows (from <code>weft:following</code>), queue others, drop blocked domains. Likes are recorded once verified and all of them count. A receiver may also use the optional Webmention Vouch extension as a signal for senders it does not follow: a <code>vouch</code> link to a page, from a source the receiver trusts, that links to the sender. This spec does not require it, and a sender that sends none is treated like any other stranger.</li>
+<li>On approval, add the reply to the post's replies feed and update the <code>weft:replies</code> and <code>weft:likes</code> counts.</li>
+<li><strong>Bubble up.</strong> If this post is itself a reply, re-send its own Webmention to its parent. Under the Webmention spec, a re-sent Webmention means the source changed, so the parent refreshes its cached subtree. Repeat up to the root, or stop at the parent's <code>weft:depth</code>.</li>
+</ol>
+<h3 id="editing-a-post">Editing a post</h3>
+<p>Update the item in place, set <code>weft:updated</code>, and re-send Webmentions to every post it replied to or liked. The <code>guid</code> and the <code>link</code> never change.</p>
+<h3 id="deleting-a-post">Deleting a post</h3>
+<p>The permalink returns HTTP 410 Gone, ideally with a small tombstone page. Remove the item from the feed and re-send Webmentions; receivers seeing 410 remove the reply or like. Replies to the deleted post keep their own place in the tree.</p>
+<h3 id="moving-a-feed">Moving a feed</h3>
+<p>A feed moves when its address changes: the author moves to another server, or starts using a domain of their own. The author's <code>guid</code>s do not change (a Weft <code>guid</code> is <code>urn:uuid:…</code>, not a URL), so the posts are the same posts at a new address. The signal is the one HTTP already has; Weft adds no element for it.</p>
+<p><strong>The old address.</strong> Answer every request, the feed included, with a permanent redirect to the same path at the new address: 301 for GET and HEAD, 308 for any other method (the only permanent redirect that keeps the method and the body, so a Webmention sent to the old endpoint still arrives). Keep doing so for at least 90 days; there is no reason to stop, and the name should stay reserved so nobody else can take it and receive the replies and likes still sent to the old permalinks. A short <code>Cache-Control: max-age</code> lets a mistake be undone.</p>
+<p><strong>Readers.</strong> When a feed is fetched and the whole chain of redirects to it was permanent, and what it leads to is a feed, the reader replaces the subscription with the final address and drops the posts it cached for the old one, so each post is seen once. A temporary redirect (302, 307), or a permanent one to something that is not a feed, changes nothing. A reader follows at most a few moves in one refresh, so feeds that point at each other cannot loop it.</p>
+<p>Replies and likes already published refer to the old permalinks; they keep working through the redirect.</p>
+<h3 id="orphaned-replies">Orphaned replies</h3>
+<p>Readers handle a reply whose parent is unavailable as follows:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parent state</th>
+<th>How readers show the reply</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Rejected (parent online, reply not in its replies feed)</td>
+<td>As an unapproved branch, visible in the raw view, collapsed or hidden in the curated view</td>
+</tr>
+<tr class="even">
+<td>Offline (no response)</td>
+<td>Under its <code>weft:root</code>, with its <code>weft:context</code> snippet standing in for the parent</td>
+</tr>
+<tr class="odd">
+<td>Deleted (410 Gone)</td>
+<td>Under a tombstone reading "original post removed"; showing <code>weft:context</code> is the app's choice</td>
+</tr>
+</tbody>
+</table>
+<p>In every case, replies further down the branch stay attached to their own parents.</p>
+<h3 id="replying-to-any-rss-20-item">Replying to any RSS 2.0 item</h3>
+<p>A Weft app can reply to an item in any RSS 2.0 feed, not just Weft feeds. The parent needs no <code>weft:</code> elements and its author needs no Weft app. The reply is built as if the parent were already deleted:</p>
+<ol type="1">
+<li><strong>Point up.</strong> <code>weft:inReplyTo href</code> is the item's <code>&lt;link&gt;</code>, or its <code>guid</code> when <code>isPermaLink</code> is true and there is no link. The <code>feed</code> attribute is required here, since nothing else identifies the source feed.</li>
+<li><strong>Set the root.</strong> The non-Weft item has no thread ancestry, so it is the root: <code>weft:root</code> equals <code>weft:inReplyTo</code>.</li>
+<li><strong>Carry context.</strong> <code>weft:context</code> is required. The app can draft it from the item's title and description, by excerpting or summarizing with AI, marked <code>origin="generated"</code>. The author can edit it before publishing.</li>
+<li><strong>Notify if possible.</strong> If the item's page advertises a Webmention endpoint, send one. If not, the parent's author is never notified; the reply is still found through indexes and by readers following both feeds.</li>
+</ol>
+<p>This makes the whole existing RSS web, including blogs, news sites and podcasts, something you can reply to on day one.</p>
+<h2 id="examples">Examples</h2>
+<h3 id="alices-feed-with-an-untitled-root-post">Alice's feed, with an untitled root post</h3>
+<pre class="xml"><code>&lt;rss version=&quot;2.0&quot;
+  xmlns:weft=&quot;https://weftprotocol.org/ns/weft/0.1&quot;
+  xmlns:source=&quot;http://source.scripting.com/&quot;&gt;
+&lt;channel&gt;
+  &lt;title&gt;Alice&lt;/title&gt;
+  &lt;link&gt;https://alice.example/&lt;/link&gt;
+  &lt;description&gt;Notes on the open web.&lt;/description&gt;
+  &lt;weft:webmention&gt;https://alice.example/webmention&lt;/weft:webmention&gt;
+  &lt;weft:following&gt;https://alice.example/following.opml&lt;/weft:following&gt;
+  &lt;weft:likesFeed&gt;https://alice.example/likes.xml&lt;/weft:likesFeed&gt;
+  &lt;cloud domain=&quot;rpc.example.org&quot; port=&quot;80&quot; path=&quot;/rsscloud/pleaseNotify&quot;
+         registerProcedure=&quot;&quot; protocol=&quot;http-post&quot;/&gt;
+
+  &lt;item&gt;
+    &lt;!-- No &lt;title&gt;: a short note --&gt;
+    &lt;guid isPermaLink=&quot;false&quot;&gt;urn:uuid:0194f3a0-5c1e-7a52-9d0b-3c7a5e2f1b44&lt;/guid&gt;
+    &lt;link&gt;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&lt;/link&gt;
+    &lt;description&gt;&amp;lt;p&amp;gt;RSS plus links already gives you a social web. Who&#39;s building the &amp;lt;em&amp;gt;reader&amp;lt;/em&amp;gt; half?&amp;lt;/p&amp;gt;&lt;/description&gt;
+    &lt;source:markdown&gt;RSS plus links already gives you a social web. Who&#39;s building the *reader* half?&lt;/source:markdown&gt;
+    &lt;pubDate&gt;Mon, 12 Oct 2026 21:00:00 -0400&lt;/pubDate&gt;
+    &lt;category&gt;textcasting&lt;/category&gt;
+    &lt;category&gt;open web&lt;/category&gt;
+    &lt;weft:replies href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp/replies.xml&quot; count=&quot;1&quot;/&gt;
+    &lt;weft:likes count=&quot;1&quot;/&gt;
+  &lt;/item&gt;
+&lt;/channel&gt;
+&lt;/rss&gt;</code></pre>
+<h3 id="bobs-reply-with-a-title">Bob's reply, with a title</h3>
+<pre class="xml"><code>&lt;item&gt;
+  &lt;title&gt;The reader half is the hard part&lt;/title&gt;
+  &lt;guid isPermaLink=&quot;false&quot;&gt;urn:uuid:0194f3b8-90aa-7c13-8e21-6d4f0a9b7c25&lt;/guid&gt;
+  &lt;link&gt;https://bob.example/posts/reader-half&lt;/link&gt;
+  &lt;description&gt;&amp;lt;p&amp;gt;Search and threads are what&#39;s missing. Here&#39;s a sketch…&amp;lt;/p&amp;gt;&lt;/description&gt;
+  &lt;source:markdown&gt;Search and threads are what&#39;s missing. Here&#39;s a sketch…&lt;/source:markdown&gt;
+  &lt;pubDate&gt;Mon, 12 Oct 2026 22:15:00 -0400&lt;/pubDate&gt;
+  &lt;weft:updated&gt;Mon, 12 Oct 2026 22:40:00 -0400&lt;/weft:updated&gt;
+  &lt;weft:inReplyTo href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+                feed=&quot;https://alice.example/feed.xml&quot;/&gt;
+  &lt;weft:root href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+           feed=&quot;https://alice.example/feed.xml&quot;/&gt;
+  &lt;weft:context href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;
+              retrieved=&quot;Mon, 12 Oct 2026 22:10:00 -0400&quot;&gt;RSS plus links already gives you a social web.&lt;/weft:context&gt;
+&lt;/item&gt;</code></pre>
+<h3 id="carols-like-in-her-likes-feed">Carol's like, in her likes feed</h3>
+<pre class="xml"><code>&lt;item&gt;
+  &lt;guid isPermaLink=&quot;true&quot;&gt;https://carol.example/likes/2026-10-12-1&lt;/guid&gt;
+  &lt;link&gt;https://carol.example/likes/2026-10-12-1&lt;/link&gt;
+  &lt;description/&gt;
+  &lt;pubDate&gt;Mon, 12 Oct 2026 22:20:00 -0400&lt;/pubDate&gt;
+  &lt;weft:likeOf href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;/&gt;
+&lt;/item&gt;</code></pre>
+<h3 id="alices-replies-feed-for-the-post-caching-two-levels">Alice's replies feed for the post, caching two levels</h3>
+<pre class="xml"><code>&lt;rss version=&quot;2.0&quot; xmlns:weft=&quot;https://weftprotocol.org/ns/weft/0.1&quot;&gt;
+&lt;channel&gt;
+  &lt;title&gt;Replies to: RSS plus links already gives you a social web&lt;/title&gt;
+  &lt;link&gt;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&lt;/link&gt;
+  &lt;description&gt;Approved replies&lt;/description&gt;
+  &lt;lastBuildDate&gt;Mon, 12 Oct 2026 22:45:00 -0400&lt;/lastBuildDate&gt;
+  &lt;weft:repliesTo href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;/&gt;
+  &lt;weft:depth&gt;2&lt;/weft:depth&gt;
+
+  &lt;item&gt;
+    &lt;title&gt;The reader half is the hard part&lt;/title&gt;
+    &lt;guid isPermaLink=&quot;false&quot;&gt;urn:uuid:0194f3b8-90aa-7c13-8e21-6d4f0a9b7c25&lt;/guid&gt;
+    &lt;link&gt;https://bob.example/posts/reader-half&lt;/link&gt;
+    &lt;description&gt;Search and threads are what&#39;s missing.&lt;/description&gt;
+    &lt;weft:feed href=&quot;https://bob.example/feed.xml&quot;/&gt;
+    &lt;weft:inReplyTo href=&quot;https://alice.example/posts/rss-plus-links-already-gives-you.w3kp&quot;/&gt;
+    &lt;weft:likes count=&quot;3&quot;/&gt;
+  &lt;/item&gt;
+
+  &lt;item&gt;
+    &lt;!-- Depth 2: a reply to Bob, untitled --&gt;
+    &lt;link&gt;https://dana.example/n/8812&lt;/link&gt;
+    &lt;guid isPermaLink=&quot;true&quot;&gt;https://dana.example/n/8812&lt;/guid&gt;
+    &lt;description&gt;Agreed. Webmention covers notification.&lt;/description&gt;
+    &lt;weft:feed href=&quot;https://dana.example/feed.xml&quot;/&gt;
+    &lt;weft:inReplyTo href=&quot;https://bob.example/posts/reader-half&quot;/&gt;
+  &lt;/item&gt;
+&lt;/channel&gt;
+&lt;/rss&gt;</code></pre>
+<h2 id="compatibility">Compatibility</h2>
+<ul>
+<li><strong>Plain RSS readers</strong> ignore the <code>weft:</code> elements and show every post normally, titled or not.</li>
+<li><strong>IndieWeb sites</strong> interoperate through Webmention and microformats on permalink pages.</li>
+<li><strong>Atom Threading</strong> (RFC 4685) users can map <code>thr:in-reply-to</code> to <code>weft:inReplyTo</code>. <code>weft:</code> adds the root pointer and context snippet that Atom Threading lacks.</li>
+<li><strong>Search</strong> uses OpenSearch with RSS results; it is outside this namespace.</li>
+</ul>
+<h2 id="out-of-scope">Out of scope</h2>
+<ul>
+<li>Private posts and direct messages.</li>
+<li>Search and index protocols.</li>
+<li>Moderation policy. The spec carries signals; each app and index decides what to do with them. That includes whom a receiver trusts and how it weighs likes.</li>
+</ul>
+<h2 id="deferred">Deferred</h2>
+<ul>
+<li>Whether replies also send a Webmention to the root, so root authors see all thread activity. Held off for now (Nov 9, 2026); a reply sends one to its parent only, and the bubble-up rule carries the news upward.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<p>None at present.</p>
+</main>
+<footer class="site">
+  <p>Specifications © the Weft authors, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Weft builds on Dave Winer's textcasting.
+  <a href="https://github.com/weftprotocol/weftprotocol.org/edit/main/src/spec/namespace/0.1/index.md">Suggest an edit to this page</a>.</p>
+</footer>
+</body>
+</html>

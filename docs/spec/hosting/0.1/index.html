@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weft Hosting 0.1 · Weft Protocol</title>
+<meta name="description" content="Web-External Federated Threads. Markdown conversations on any URL, published as RSS 2.0 and connected with Webmention.">
+<link rel="icon" href="../../../assets/favicon.ico" sizes="any">
+<link rel="icon" href="../../../assets/weft-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../../../assets/site.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="../../../index.html"><img src="../../../assets/weft-icon.svg" alt="" width="32" height="32"><span>Weft Protocol</span></a>
+  <nav aria-label="Main">
+    <a href="../../../spec/index.html">Specs</a>
+    <a href="../../../implementations/index.html">Implementations</a>
+    <a href="../../../trademark/index.html">Trademark</a>
+    <a href="https://github.com/weftprotocol/weftprotocol.org">GitHub</a>
+  </nav>
+</header>
+<main>
+<h1 id="weft-hosting-spec-01-draft">Weft Hosting Spec 0.1 (Draft)</h1>
+<p><strong>Weft: Web-External Federated Threads</strong></p>
+<p>Oct 20, 2026 · revised Nov 9, 2026 · companion to <a href="../../namespace/0.1/index.html">Weft Namespace 0.1</a></p>
+<h2 id="status-and-purpose">Status and purpose</h2>
+<p>The Weft Namespace defines what goes <em>in</em> a feed: posts, replies, likes, replies feeds, permalink pages and processing rules. This spec defines where those feeds <em>live</em>: how a person gets an address, how a host serves it, how a custom domain is set up and verified, and how a person moves from one host to another without breaking a single reply.</p>
+<p>It adds no XML. Every format detail is the namespace's, referred to here as <strong>[NS]</strong>.</p>
+<p>The reference host is <strong>weftseed.com</strong>: the first, but not the last. Anyone can run a host from the open-source code.</p>
+<h2 id="terms">Terms</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Host</strong></td>
+<td>A server running Weft. Serves one or more people.</td>
+</tr>
+<tr class="even">
+<td><strong>Handle</strong></td>
+<td>A person's hostname, e.g. <code>alice.weftseed.com</code> or <code>weft.alice.com</code>. Opening it in a browser shows their profile and posts.</td>
+</tr>
+<tr class="odd">
+<td><strong>Default handle</strong></td>
+<td>The handle a host issues on sign-up: <code>&lt;name&gt;.&lt;host-domain&gt;</code>.</td>
+</tr>
+<tr class="even">
+<td><strong>Custom handle</strong></td>
+<td>A handle on a domain the person controls.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-handles">1. Handles</h2>
+<h3 id="11-why-handles-matter">1.1 Why handles matter</h3>
+<p>In [NS], a post's address is its permalink, and replies, likes and Webmentions all point at permalinks. A permalink is <code>https://&lt;handle&gt;/posts/&lt;slug&gt;</code>. So <strong>whoever controls the handle controls whether a person's posts keep their addresses.</strong> A custom handle on the person's own domain is what makes their posts truly theirs.</p>
+<h3 id="12-default-handles">1.2 Default handles</h3>
+<p>Every person gets <code>&lt;name&gt;.&lt;host-domain&gt;</code>, e.g. <code>alice.weftseed.com</code>. The host serves these with one wildcard DNS record and a TLS certificate for each name (a wildcard certificate, or one obtained on demand). Who may have an account, and how many, is the host's own policy and not part of the protocol: open sign-up, a waiting list, an invitation, a cap.</p>
+<p>Default handles work immediately but belong to the host. Moving away from one changes the person's permalinks (see §5.3).</p>
+<h3 id="13-custom-handles">1.3 Custom handles</h3>
+<p>The recommended convention is <strong><code>weft.&lt;their-domain&gt;</code></strong>, e.g. <code>weft.alice.com</code>. It tells readers what lives there and lets apps discover it (§4). A host MAY accept any subdomain the person verifies (the reference server accepts any domain that is not its own), or fewer. The weftseed.com sign-up takes only <code>weft.</code> followed by the person's registered domain, such as <code>weft.example.com</code> or <code>weft.example.co.uk</code> and never <code>weft.blog.example.com</code>, with one account for each registered domain. Setup screens, docs and examples default to <code>weft.</code>.</p>
+<p>Root domains (<code>alice.com</code>) are not supported as handles. DNS does not allow a CNAME on a root domain, and most root domains already host a website.</p>
+<h2 id="2-url-layout">2. URL layout</h2>
+<p>Every host MUST serve a handle with this layout, so that an export from one host imports into another at identical URLs:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Path</th>
+<th>Serves</th>
+<th>[NS] reference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/</code></td>
+<td>HTML profile page</td>
+<td>channel <code>&lt;link&gt;</code></td>
+</tr>
+<tr class="even">
+<td><code>/feed.xml</code></td>
+<td>Main feed, paged</td>
+<td>Channel elements, Paged feeds</td>
+</tr>
+<tr class="odd">
+<td><code>/likes.xml</code></td>
+<td>Likes feed</td>
+<td><code>weft:likesFeed</code></td>
+</tr>
+<tr class="even">
+<td><code>/following.opml</code></td>
+<td>Follow list</td>
+<td><code>weft:following</code></td>
+</tr>
+<tr class="odd">
+<td><code>/webmention</code></td>
+<td>Webmention endpoint</td>
+<td><code>weft:webmention</code></td>
+</tr>
+<tr class="even">
+<td><code>/posts/&lt;slug&gt;</code></td>
+<td>Post permalink (HTML, RSS, Markdown by content negotiation)</td>
+<td>Post representations</td>
+</tr>
+<tr class="odd">
+<td><code>/posts/&lt;slug&gt;/replies.xml</code></td>
+<td>The post's replies feed</td>
+<td>Replies feed</td>
+</tr>
+<tr class="even">
+<td><code>/posts/&lt;slug&gt;/likes.xml</code></td>
+<td>Liked-by feed for the post (a cache)</td>
+<td><code>weft:likes</code></td>
+</tr>
+<tr class="odd">
+<td><code>/likes/&lt;id&gt;</code></td>
+<td>Like permalink, where <code>&lt;id&gt;</code> is the host's own number for the like</td>
+<td>Likes feed</td>
+</tr>
+<tr class="even">
+<td><code>/.well-known/weft-domain</code></td>
+<td>Proof that a custom handle reaches this host (§3.2)</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The profile page MUST carry <code>&lt;link rel="alternate" type="application/rss+xml" href="/feed.xml"&gt;</code> and <code>&lt;link rel="webmention" href="/webmention"&gt;</code>.</p>
+<p>Because the Webmention endpoint lives on the handle, not on the host's own domain, it moves with the person.</p>
+<h2 id="3-custom-handle-setup">3. Custom handle setup</h2>
+<h3 id="31-dns-records">3.1 DNS records</h3>
+<p>The host shows the person two records to add:</p>
+<pre><code>weft.alice.com.          CNAME  custom.weftseed.com.
+_weft.weft.alice.com.    TXT    &quot;weft-verify=9f2c1e7a4b&quot;</code></pre>
+<ul>
+<li>The <strong>CNAME</strong> sends traffic for the handle to the host. Its target is one name the host publishes for all its custom handles (here <code>custom.weftseed.com</code>), the same for every person. A handle behind a proxy such as Cloudflare hides its CNAME, which is fine: what counts is that requests arrive (§3.2).</li>
+<li>The <strong>TXT</strong> record carries a token the host issued to that person's account. Because every person's CNAME names the same target, it is the TXT record that proves which account the domain owner chose.</li>
+</ul>
+<h3 id="32-verification">3.2 Verification</h3>
+<p>A custom handle is verified in two steps, and only the second changes the person's address:</p>
+<ol type="1">
+<li><strong>Verified.</strong> The TXT record carries the token the host issued to the account claiming the handle. From then on a request that arrives on the handle is served as that person, and the host may obtain a certificate for it.</li>
+<li><strong>Active.</strong> The handle reaches the host: the host requests <code>https://&lt;handle&gt;/.well-known/weft-domain</code> and expects the answer <code>weft-domain=&lt;token&gt;</code>. Only then is the handle the person's address: every other address of theirs, the feed included, answers with a permanent redirect to it (<code>301</code> for GET and HEAD, <code>308</code> for other methods).</li>
+</ol>
+<p>Until the handle is active the person stays at the default handle and nothing redirects, so a domain whose DNS is not ready cannot lock anyone out. The sign-in, profile and domain pages stay on the default handle, so a handle that stops working can always be removed.</p>
+<p>The token prevents takeover. If Alice leaves a host but forgets to update her CNAME, nobody else on that host can claim <code>weft.alice.com</code>, because they can't produce her token. Several people may claim the same handle; the first to show the token keeps it.</p>
+<p>Hosts SHOULD re-check handles periodically, and decide what a failure means. A single failed lookup is a poor reason to drop anyone. The reference server checks once a day the accounts that exist only because of their domain (an account made through the weftseed.com sign-up): after three failed days in a row the owner is warned, and after a further 90 days without a pass the account is removed to the trash (§6). Accounts that are not tied to their domain keep their default handle, and the owner can fall back to it at any time.</p>
+<h3 id="33-tls">3.3 TLS</h3>
+<p>Every handle MUST be served over HTTPS. For custom handles, the host obtains a certificate on demand (ACME / Let's Encrypt) the first time the handle is requested, and only for a handle it serves (§3.2, verified). The reference server lets its proxy ask, on a private address, whether a name is one it serves, so certificates are never requested for strangers' names.</p>
+<h3 id="34-pointer-record-proposal">3.4 Pointer record (proposal)</h3>
+<p>A CNAME ties the handle to one host's servers, and obliges the new host to issue TLS certificates for the person's domain. Bluesky takes a lighter approach: the domain only <em>names</em> where the account lives, and the host is looked up from that. Weft MAY offer the same as an alternative to §3.1. The reference server does not implement it yet:</p>
+<pre><code>_weft.weft.alice.com.    TXT    &quot;weft-host=weftseed.com; weft-verify=9f2c1e7a4b&quot;</code></pre>
+<p>or, equivalently, a file at <code>https://weft.alice.com/.well-known/weft</code> containing the same <code>key=value</code> pairs. Moving hosts then means editing one line. Verification stays two-way as in §3.2: the record names the host, and the host confirms the token belongs to the account claiming the handle.</p>
+<p>The handle must still resolve to <em>some</em> server that holds a certificate for it, so this does not remove the CNAME or A record; it makes the host choice explicit, and readable by apps, instead of implied by DNS. Whether it replaces the CNAME or only supplements it is an open question below.</p>
+<h2 id="4-discovery">4. Discovery</h2>
+<ul>
+<li><p><strong>From a person's own site.</strong> A reader on any page of <code>alice.com</code> MAY try <code>https://weft.alice.com/feed.xml</code>. If it answers, Alice has a Weft presence. This is the main payoff of the <code>weft.</code> convention.</p></li>
+<li><p><strong>Linking from the main site.</strong> People SHOULD add the feed link to their main site's pages, so plain RSS readers find it too:</p>
+<pre><code>&lt;link rel=&quot;alternate&quot; type=&quot;application/rss+xml&quot; href=&quot;https://weft.alice.com/feed.xml&quot;&gt;</code></pre></li>
+<li><p><strong>From a post.</strong> Everything else is found from permalinks, as [NS] Post representations describes.</p></li>
+</ul>
+<h2 id="5-moving-between-hosts">5. Moving between hosts</h2>
+<p>A post's identity is its <code>guid</code> (a <code>urn:uuid:</code>), which never changes. Its address is its permalink, which changes only if the handle does. So what a move costs depends on the handle.</p>
+<h3 id="51-export">5.1 Export</h3>
+<p>Every host MUST offer a signed-in person a complete export of their account as one file. The reference server's export is a zip with two files:</p>
+<pre><code>alice.weft.zip
+├── manifest.json   # format version, Weft version, schema version, name, base domain, export time
+└── user.db         # one consistent copy of the person&#39;s database</code></pre>
+<p>The database holds everything the person has on the host: posts, replies, likes, follows, pictures and the login, without sessions or an API token. Another reference server imports it, keeping every <code>guid</code>, slug, <code>pubDate</code>, <code>weft:updated</code> and tombstone as exported. The file is an implementation format, not a protocol one: a host that stores data differently cannot read it. A portable archive is an open question below.</p>
+<h3 id="52-moving-with-a-custom-handle">5.2 Moving with a custom handle</h3>
+<ol type="1">
+<li><strong>Export</strong> from the old host.</li>
+<li><strong>Import</strong> into the new host. The new host MUST keep every <code>guid</code>, slug, <code>pubDate</code>, <code>weft:updated</code> and tombstone exactly as exported.</li>
+<li><strong>Update DNS.</strong> Point the CNAME at the new host and replace the TXT token with the one the new host issues. A custom handle does not travel with the account: it is claimed again on the new host.</li>
+</ol>
+<p>Every permalink, feed URL and Webmention endpoint keeps its address, so every reply anywhere on the web still resolves. Subscribers notice nothing, and no redirect is needed.</p>
+<h3 id="53-moving-from-a-default-handle">5.3 Moving from a default handle</h3>
+<p>Leaving <code>alice.weftseed.com</code> changes every URL. HTTP carries the move, as [NS] Moving a feed describes: for at least 90 days, and SHOULD for 12 months, the old host MUST answer every old address, the feed and every permalink included, with a permanent redirect to the same path on the new handle. Use <code>301</code> for GET and HEAD and <code>308</code> for other methods, so Webmentions still arrive. The old name stays reserved. The reference server never ends the redirect.</p>
+<p>The new host SHOULD then re-send Webmentions for every reply and like the person published, so receivers update their links. Hosts SHOULD encourage people to set up a custom handle before they need to move.</p>
+<h3 id="54-when-the-old-host-disappears">5.4 When the old host disappears</h3>
+<p>A custom-handle person loses nothing: they import their last export and update DNS. A default-handle person whose host vanishes without redirects keeps their posts (same <code>guid</code>s, re-published on a new handle) but replies elsewhere pointing at the old permalinks break. Readers fall back to <code>weft:context</code> and the orphan rules in [NS].</p>
+<h3 id="55-automatic-transfer-reference-server">5.5 Automatic transfer (reference server)</h3>
+<p>Between two reference servers the export and import happen by themselves. This is a host feature, not a requirement:</p>
+<ol type="1">
+<li>The person makes an empty account with the same name on the new host.</li>
+<li>On the old host they ask for a <strong>move code</strong>, shown once and good for an hour.</li>
+<li>On the new host they enter the old host and the code. The new host asks the old one for a copy, checks its size and checksum, the format and that the schema is not newer than it knows, and replaces the empty account with the copy. The account keeps the new host's own password, token and sign-in.</li>
+<li>The old host answers every address with the permanent redirects of §5.3, and keeps the file in a trash for 30 days in case the move is cancelled. Changes are refused on the old account only for the last moment of the move; Webmentions that arrive meanwhile are held and sent on to the new host.</li>
+</ol>
+<h2 id="6-running-a-host">6. Running a host</h2>
+<ul>
+<li><strong>Open source.</strong> The reference implementation is a Go server with SQLite, serving HTML pages and a REST API for client apps. The REST API is implementation-specific and not part of this spec; hosts interoperate only through feeds, permalinks and Webmention.</li>
+<li><strong>Storage.</strong> A host MAY use one database per person or one per instance. Per-person databases make export and deletion simple.</li>
+<li><strong>Pings.</strong> Hosts SHOULD publish rssCloud or WebSub for every feed they serve, per [NS].</li>
+<li><strong>Deleting an account.</strong> Every permalink returns <code>410 Gone</code>, and the host re-sends Webmentions so receivers remove replies and likes. A custom handle stops being served once the person removes the CNAME. The reference server keeps a deleted account's file in a trash for 30 days, so it can be brought back or downloaded, and the name stays reserved. A host MAY also switch an account off, which answers <code>410</code> on every address until it is switched on again.</li>
+<li><strong>Limits and policy.</strong> Quotas, who may join, a cap on accounts, a waiting list and an administrator's pages are the host's own business. Only the feeds, the permalinks and the redirects are protocol.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>[ ] Should hosts publish a machine-readable list of their default-handle domains, so readers can tell a host-owned handle from a person-owned one?</li>
+<li>[ ] Is 12 months the right redirect commitment for default handles, or should hosts be required to keep them longer?</li>
+<li>[ ] Should there be a portable export in plain RSS, OPML and text, so hosts that store data differently can import each other's archives? For example: <code>feed.xml</code> with every post and <code>source:markdown</code>, <code>likes.xml</code>, <code>following.opml</code>, one replies feed per post, <code>tombstones.txt</code> for deleted slugs, and the pictures at their original paths.</li>
+<li>[ ] Should the pointer record in §3.4 supplement the CNAME, replace it, or stay out of 0.1? Replacing it needs a way to route and certify the handle without a CNAME.</li>
+</ul>
+</main>
+<footer class="site">
+  <p>Specifications © the Weft authors, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Weft builds on Dave Winer's textcasting.
+  <a href="https://github.com/weftprotocol/weftprotocol.org/edit/main/src/spec/hosting/0.1/index.md">Suggest an edit to this page</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · Weft Protocol</title>
+<meta name="description" content="Web-External Federated Threads. Markdown conversations on any URL, published as RSS 2.0 and connected with Webmention.">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" href="assets/weft-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html"><img src="assets/weft-icon.svg" alt="" width="32" height="32"><span>Weft Protocol</span></a>
+  <nav aria-label="Main">
+    <a href="spec/index.html">Specs</a>
+    <a href="implementations/index.html">Implementations</a>
+    <a href="trademark/index.html">Trademark</a>
+    <a href="https://github.com/weftprotocol/weftprotocol.org">GitHub</a>
+  </nav>
+</header>
+<main class="home">
+<section class="hero">
+  <img src="assets/weft-icon.svg" alt="" width="96" height="96">
+  <div>
+    <h1 id="weft">Weft</h1>
+    <p class="lede">Web-External Federated Threads: Markdown conversations about any web page, published as RSS 2.0 and connected with Webmention.</p>
+  </div>
+</section>
+
+<p>Weft lets anyone reply to any URL. Every post, reply and like lives in its author's own RSS feed, at the author's own address, on whichever host they choose.</p>
+
+<figure class="weave">
+  <svg viewBox="0 0 640 220" role="img" aria-labelledby="weave-t weave-d">
+    <title id="weave-t">Threads woven across web pages</title>
+    <desc id="weave-d">Three web pages stand as vertical warp threads. Two conversation threads run across them as weft, passing in front of and behind each page.</desc>
+    <g class="weft" fill="none" stroke-width="10" stroke-linecap="round">
+      <line x1="30" y1="80" x2="610" y2="80"/>
+      <line x1="30" y1="140" x2="610" y2="140"/>
+    </g>
+    <g class="warp" stroke-width="16" stroke-linecap="round">
+      <line x1="120" y1="20" x2="120" y2="176"/>
+      <line x1="320" y1="20" x2="320" y2="176"/>
+      <line x1="520" y1="20" x2="520" y2="176"/>
+    </g>
+    <g class="over" fill="none" stroke-linecap="butt">
+      <path class="cut" d="M104 80 H136 M304 140 H336 M504 80 H536" stroke-width="22"/>
+      <path class="top" d="M100 80 H140 M300 140 H340 M500 80 H540" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g class="label" text-anchor="middle">
+      <text x="120" y="208">example.com/a</text>
+      <text x="320" y="208">blog.example/post</text>
+      <text x="520" y="208">news.example/story</text>
+    </g>
+  </svg>
+  <figcaption>Web pages are the warp, already in place. Conversation threads are the weft, woven across them. The pages stay where they are.</figcaption>
+</figure>
+
+<ul class="points">
+<li><strong>You own your words.</strong> Your posts live at your own handle, such as <code>weft.yourdomain.com</code>.</li>
+<li><strong>Any host, and you can leave.</strong> Export, import, update one DNS record. Every link to your posts keeps working.</li>
+<li><strong>Nothing new to parse.</strong> Weft feeds are plain RSS 2.0 with one namespace. Any feed reader shows them; Weft apps show the threads.</li>
+<li><strong>Markdown, with a plain-text fallback.</strong> Posts carry rendered HTML and the original Markdown, so a plain RSS reader still shows every post.</li>
+<li><strong>Works with what exists.</strong> Reply to any RSS item or web page. Sites that accept Webmention see the replies automatically.</li>
+</ul>
+
+<h2 id="get-started">Get started</h2>
+<div class="cards">
+  <a class="card" href="implementations/index.html">
+    <h3>Use it</h3>
+    <p>Sign up at a host. <strong>weftseed.com</strong> is the first; see all implementations.</p>
+  </a>
+  <a class="card" href="implementations/index.html#servers">
+    <h3>Run it</h3>
+    <p>The reference server is a single Go binary with SQLite. Run your own host.</p>
+  </a>
+  <a class="card" href="https://github.com/weftprotocol/weftprotocol.org">
+    <h3>Help shape it</h3>
+    <p>The specs are drafts. Open an issue or pull request on GitHub.</p>
+  </a>
+</div>
+
+<h2 id="specifications">Specifications</h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Version</th>
+<th>Defines</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="spec/namespace/0.1/index.html">Weft Namespace</a></td>
+<td>0.1 draft</td>
+<td>What goes in a feed: posts, replies, likes, replies feeds, processing rules</td>
+</tr>
+<tr>
+<td><a href="spec/hosting/0.1/index.html">Weft Hosting</a></td>
+<td>0.1 draft</td>
+<td>Where feeds live: handles, custom domains, verification, moving between hosts</td>
+</tr>
+</tbody>
+</table>
+<p>Namespace URI: <a href="ns/weft/0.1/index.html"><code>https://weftprotocol.org/ns/weft/0.1</code></a></p>
+
+<h2 id="credits">Credits</h2>
+<p>Weft builds on Dave Winer's <a href="http://textcasting.org/">textcasting</a>, his <a href="http://source.scripting.com/">Source namespace</a>, RSS 2.0, and the IndieWeb's <a href="https://www.w3.org/TR/webmention/">Webmention</a>.</p>
+</main>
+<footer class="site">
+  <p>Specifications © the Weft authors, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Weft builds on Dave Winer's textcasting.
+  <a href="https://github.com/weftprotocol/weftprotocol.org/edit/main/index.html">Suggest an edit to this page</a>.</p>
+</footer>
+</body>
+</html>
